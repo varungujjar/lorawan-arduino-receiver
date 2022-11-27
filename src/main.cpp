@@ -16,7 +16,7 @@ static unsigned long previousMillisDisplay = 0;
 boolean enableDisplay = false;
 
 
-//Lora Configurations
+//Lora Config
 #define csPin 10
 #define resetPin 9
 #define irqPin 2  
@@ -29,7 +29,7 @@ long lastSendTime = 0;        // last send time
 int interval = 2000;          // interval between sends
 
 
-//Vibration Configurations
+//Vibration Config
 boolean vibrate = false;
 boolean enable = false;
 int vibrateTrackCount = 0;
@@ -37,6 +37,15 @@ int vibrateTrackCount = 0;
 int vibrateCount = 3;
 int vibrateDuration = 500;
 int vibrateInterval = 200;
+
+
+
+//Splash Screen Config
+boolean showSplash = true;
+static unsigned long splashInterval = 2000;
+unsigned long currentMillisSplash = millis();
+
+
 
 // String message = "";
 static unsigned long previousMillis = 0;
@@ -50,9 +59,11 @@ unsigned long currentMillis = millis();
 
 
 
-void displayText(String text){
+void displayText(String text, int cursorX, int cursorY, int fontSize){
   display.clearDisplay();
-  display.setCursor(0, 1);
+  display.setTextSize(fontSize);
+  display.setTextColor(WHITE);
+  display.setCursor(cursorX, cursorY);
   display.print(text);
   display.display();
 }
@@ -72,6 +83,7 @@ void disableVibrate(){
 }
 
 void doVibrate(){
+  if(showSplash) return;
   currentMillis = millis();
 
   if (enable && vibrate && (currentMillis - previousMillis >= vibrateInterval))
@@ -92,6 +104,19 @@ void doVibrate(){
 }
 
 
+void splashScreen(){
+  if(showSplash){
+    displayText("Ronin Labs",33, 15, 1);
+  }
+
+  currentMillisSplash = millis();
+  if (showSplash && (currentMillisSplash >= splashInterval))
+  {
+    displayText("...",55, 15, 1);
+    showSplash = false;
+  }
+}
+
 
 void setup() {
   Serial.begin(9600); 
@@ -102,9 +127,6 @@ void setup() {
 
   //Initialize display by providing the display type and its I2C address.
   display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
-  displayText("^.^");
   Serial.println("OLED Display init succeeded");
  
   if (!LoRa.begin(434E6)) {             // initialize ratio at 915 MHz
@@ -129,11 +151,11 @@ void setup() {
   pinMode(5, OUTPUT);
   digitalWrite(5, LOW);
   Serial.println("Vibration init succeeded");
-  
 }
 
 
 void onReceive(int packetSize) {
+  if(showSplash) return;
   if (packetSize == 0) return;          // if there's no packet, return
 
   // Requires first byte to be a string and so we discard it
@@ -172,7 +194,7 @@ void onReceive(int packetSize) {
   }
 
   if(incoming.length()==incomingLength){
-    displayText(incoming);
+    displayText(incoming,0, 1, 2);
     enableVibrate();
   }
 
@@ -196,8 +218,8 @@ void loop(){
   // LoRa.idle();
   // LoRa.sleep();
   // wdt_reset();
-
-  onReceive(LoRa.parsePacket());
-  doVibrate();
+    splashScreen();
+    onReceive(LoRa.parsePacket());
+    doVibrate();
 }
 
